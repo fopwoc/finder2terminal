@@ -173,6 +173,7 @@ struct WorkflowRegistrar {
                     ],
                     "NSSendFileTypes": [
                         "public.item",
+                        "public.folder",
                     ],
                 ],
             ],
