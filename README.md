@@ -1,5 +1,7 @@
 # f2t — Finder to Terminal
 
+[![Build](https://github.com/fopwoc/finder2terminal/actions/workflows/ci.yml/badge.svg)](https://github.com/fopwoc/finder2terminal/actions/workflows/ci.yml)
+
 f2t is a small native macOS app for creating Finder Quick Actions that open
 selected files or folders in Terminal.app with Vim, another terminal editor, or
 any CLI tool.
@@ -8,6 +10,9 @@ Profiles define a Finder menu title, executable, optional arguments, and whether
 Terminal should keep the shell open after the command exits. Finder workflows
 only pass the profile ID and current selection back to f2t, so profile changes
 take effect without rebuilding the workflow.
+
+![f2t](.github/assets/f2t.png)
+![context](.github/assets/context.png)
 
 ## Install
 
