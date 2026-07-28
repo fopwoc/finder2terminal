@@ -1,0 +1,37 @@
+{
+  "color-space-for-untagged-svg-colors" : "display-p3",
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:0.20802,0.77697,0.37592,1.00000",
+      "display-p3:0.06872,0.34041,0.13664,1.00000"
+    ]
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "apple.terminal.on.rectangle.fill 4.png",
+          "name" : "apple.terminal.on.rectangle.fill 4",
+          "position" : {
+            "scale" : 0.83,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}

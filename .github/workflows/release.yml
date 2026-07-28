@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "**"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    outputs:
+      asset_name: ${{ steps.release_info.outputs.asset_name }}
+      download_url: ${{ steps.publish.outputs.download_url }}
+      sha256: ${{ steps.release_info.outputs.sha256 }}
+      version: ${{ steps.release_info.outputs.version }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode 26.5
+        run: sudo xcode-select -s /Applications/Xcode_26.5.app/Contents/Developer
+
+      - name: Build universal app
+        run: |
+          xcodebuild \
+            -project finder2terminal.xcodeproj \
+            -scheme finder2terminal \
+            -configuration Release \
+            -destination "generic/platform=macOS" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package app
+        id: release_info
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          app="$RUNNER_TEMP/DerivedData/Build/Products/Release/Finder To Terminal.app"
+          safe_tag="$(printf '%s' "$TAG" | tr '/:' '--')"
+          asset_name="f2t-${safe_tag}-macos.zip"
+          archive="$RUNNER_TEMP/$asset_name"
+
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          lipo -info "$app/Contents/MacOS/Finder To Terminal"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$archive"
+
+          sha256="$(shasum -a 256 "$archive" | awk '{print $1}')"
+          version="${TAG#v}"
+
+          echo "asset_name=$asset_name" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create commit-list release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          previous_tag="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+
+          {
+            echo "## Changes"
+            echo
+            if [[ -n "$previous_tag" ]]; then
+              git log --pretty='- %s (`%h`)' "${previous_tag}..${TAG}"
+            else
+              git log --pretty='- %s (`%h`)' "$TAG"
+            fi
+          } > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Create GitHub release
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          ASSET_NAME: ${{ steps.release_info.outputs.asset_name }}
+        run: |
+          gh release create "$TAG" \
+            "$RUNNER_TEMP/$ASSET_NAME" \
+            --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
+
+          download_url="$(
+            gh release view "$TAG" \
+              --json assets \
+              --jq ".assets[] | select(.name == \"$ASSET_NAME\") | .url"
+          )"
+          echo "download_url=$download_url" >> "$GITHUB_OUTPUT"
+
+  notify-homebrew-tap:
+    needs: release
+    if: vars.HOMEBREW_TAP_REPOSITORY != ''
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Dispatch release to Homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_REPOSITORY: ${{ vars.HOMEBREW_TAP_REPOSITORY }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+          VERSION: ${{ needs.release.outputs.version }}
+          ASSET_NAME: ${{ needs.release.outputs.asset_name }}
+          DOWNLOAD_URL: ${{ needs.release.outputs.download_url }}
+          SHA256: ${{ needs.release.outputs.sha256 }}
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "HOMEBREW_TAP_TOKEN is required when HOMEBREW_TAP_REPOSITORY is set."
+            exit 1
+          fi
+
+          jq -n \
+            --arg version "$VERSION" \
+            --arg asset_name "$ASSET_NAME" \
+            --arg url "$DOWNLOAD_URL" \
+            --arg sha256 "$SHA256" \
+            --arg source_sha "$SOURCE_SHA" \
+            --arg homepage "https://github.com/${SOURCE_REPOSITORY}" \
+            '{
+              event_type: "update-cask",
+              client_payload: {
+                cask_token: "f2t",
+                version: $version,
+                asset_name: $asset_name,
+                url: $url,
+                sha256: $sha256,
+                source_sha: $source_sha,
+                name: "Finder To Terminal",
+                description: "Create Finder Quick Actions for terminal tools",
+                homepage: $homepage,
+                app: "Finder To Terminal.app"
+              }
+            }' |
+            gh api \
+              --method POST \
+              "repos/${TAP_REPOSITORY}/dispatches" \
+              --input -
