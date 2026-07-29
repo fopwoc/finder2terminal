@@ -1,0 +1,16 @@
+{
+  "formatVersion" : 1,
+  "profile" : {
+    "arguments" : [
+      "-m",
+      "http.server",
+      "8080",
+      "-d"
+    ],
+    "executable" : "/opt/homebrew/bin/python3",
+    "id" : "187a0153-3c1e-4a30-9283-967cc5a29578",
+    "preserveSessionAfterCommand" : false,
+    "targetKind" : "folders",
+    "title" : "Serve static (Python)"
+  }
+}

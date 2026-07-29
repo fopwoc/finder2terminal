@@ -1,12 +1,13 @@
 import Foundation
 
-struct Profile: Codable, Hashable, Identifiable {
+nonisolated struct Profile: Codable, Hashable, Identifiable {
     static var defaultVim: Profile {
         Profile(
             id: UUID().uuidString.lowercased(),
-            title: "Open in Vim",
+            title: String(localized: "profile.default.vim_title"),
             executable: "/usr/bin/vim",
             arguments: [],
+            targetKind: .filesAndFolders,
             preserveSessionAfterCommand: true
         )
     }
@@ -15,6 +16,7 @@ struct Profile: Codable, Hashable, Identifiable {
     var title: String
     var executable: String
     var arguments: [String]
+    var targetKind: ProfileTargetKind
     var preserveSessionAfterCommand: Bool
 
     init(
@@ -22,12 +24,14 @@ struct Profile: Codable, Hashable, Identifiable {
         title: String,
         executable: String,
         arguments: [String],
+        targetKind: ProfileTargetKind = .filesAndFolders,
         preserveSessionAfterCommand: Bool
     ) {
         self.id = id
         self.title = title
         self.executable = executable
         self.arguments = arguments
+        self.targetKind = targetKind
         self.preserveSessionAfterCommand = preserveSessionAfterCommand
     }
 
@@ -37,6 +41,10 @@ struct Profile: Codable, Hashable, Identifiable {
         title = try container.decode(String.self, forKey: .title)
         executable = try container.decode(String.self, forKey: .executable)
         arguments = try container.decode([String].self, forKey: .arguments)
+        targetKind = try container.decodeIfPresent(
+            ProfileTargetKind.self,
+            forKey: .targetKind
+        ) ?? .filesAndFolders
         preserveSessionAfterCommand = try container.decodeIfPresent(
             Bool.self,
             forKey: .preserveSessionAfterCommand

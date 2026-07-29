@@ -38,7 +38,11 @@ struct ProfileCommandRunner {
         }
 
         let scriptURL = scriptManager.scriptURL(for: profile)
-        let command = ([profile.executable] + profile.arguments + invocation.selectedPaths)
+        let command = try CommandTemplate.resolve(
+            executable: profile.executable,
+            arguments: profile.arguments,
+            targets: invocation.selectedPaths
+        )
             .map(\.shellQuoted)
             .joined(separator: " ")
         let workingDirectory = workingDirectory(for: invocation.selectedPaths)
@@ -101,11 +105,11 @@ enum CommandRunnerError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .profileNotFound:
-            "The selected f2t profile no longer exists."
+            String(localized: "errors.command.profile_not_found")
         case .noSelection:
-            "The Finder action did not provide any files or folders."
+            String(localized: "errors.command.no_selection")
         case .terminalNotFound:
-            "Terminal.app could not be found."
+            String(localized: "errors.command.terminal_not_found")
         }
     }
 }

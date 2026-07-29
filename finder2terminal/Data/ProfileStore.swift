@@ -46,7 +46,11 @@ final class ProfileStore: ObservableObject {
             try scriptManager.removeOrphanScripts(keeping: profiles)
             errorMessage = nil
         } catch {
-            errorMessage = "Could not initialize f2t: \(error.localizedDescription)"
+            let format = String(localized: "errors.data.initialize_format")
+            errorMessage = String.localizedStringWithFormat(
+                format,
+                error.localizedDescription
+            )
         }
     }
 
@@ -58,14 +62,20 @@ final class ProfileStore: ObservableObject {
         title: String,
         executable: String,
         arguments: [String],
+        targetKind: ProfileTargetKind,
         preserveSessionAfterCommand: Bool
     ) throws -> Profile {
-        try validate(title: title, executable: executable)
+        try validate(
+            title: title,
+            executable: executable,
+            arguments: arguments
+        )
         let profile = Profile(
             id: UUID().uuidString.lowercased(),
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             executable: executable.trimmingCharacters(in: .whitespacesAndNewlines),
             arguments: arguments,
+            targetKind: targetKind,
             preserveSessionAfterCommand: preserveSessionAfterCommand
         )
         try registrar.register(profile)
@@ -87,12 +97,18 @@ final class ProfileStore: ObservableObject {
         title: String,
         executable: String,
         arguments: [String],
+        targetKind: ProfileTargetKind,
         preserveSessionAfterCommand: Bool
     ) throws {
         guard let index = profiles.firstIndex(where: { $0.id == id }) else {
             return
         }
-        try validate(title: title, executable: executable, excluding: id)
+        try validate(
+            title: title,
+            executable: executable,
+            arguments: arguments,
+            excluding: id
+        )
 
         let oldProfile = profiles[index]
         let profile = Profile(
@@ -100,6 +116,7 @@ final class ProfileStore: ObservableObject {
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             executable: executable.trimmingCharacters(in: .whitespacesAndNewlines),
             arguments: arguments,
+            targetKind: targetKind,
             preserveSessionAfterCommand: preserveSessionAfterCommand
         )
         try registrar.register(profile, replacing: oldProfile)
@@ -113,6 +130,28 @@ final class ProfileStore: ObservableObject {
             throw error
         }
         profiles = updatedProfiles
+        errorMessage = nil
+    }
+
+    func importProfile(_ importedProfile: Profile) throws {
+        let importPlan = try ProfileImportPlan(
+            existingProfiles: profiles,
+            importedProfile: importedProfile
+        )
+        try validate(importPlan.profiles)
+
+        do {
+            try registrar.register(
+                importPlan.change.newProfile,
+                replacing: importPlan.change.oldProfile
+            )
+            try persist(importPlan.profiles)
+        } catch {
+            rollback(importPlan.change)
+            throw error
+        }
+
+        profiles = importPlan.profiles
         errorMessage = nil
     }
 
@@ -155,6 +194,7 @@ final class ProfileStore: ObservableObject {
     private func validate(
         title: String,
         executable: String,
+        arguments: [String],
         excluding id: String? = nil
     ) throws {
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -164,10 +204,41 @@ final class ProfileStore: ObservableObject {
         guard !executable.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw ProfileError.emptyExecutable
         }
+        try CommandTemplate.validate(arguments)
         if profiles.contains(where: {
             $0.id != id && $0.title.caseInsensitiveCompare(normalizedTitle) == .orderedSame
         }) {
             throw ProfileError.duplicateTitle
+        }
+    }
+
+    private func validate(_ profiles: [Profile]) throws {
+        var normalizedTitles = Set<String>()
+        for profile in profiles {
+            let title = profile.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty else {
+                throw ProfileError.emptyTitle
+            }
+            guard !profile.executable.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            ).isEmpty else {
+                throw ProfileError.emptyExecutable
+            }
+            guard normalizedTitles.insert(title.lowercased()).inserted else {
+                throw ProfileError.duplicateTitle
+            }
+            try CommandTemplate.validate(profile.arguments)
+        }
+    }
+
+    private func rollback(_ change: ProfileImportChange) {
+        if let oldProfile = change.oldProfile {
+            try? registrar.register(
+                oldProfile,
+                replacing: change.newProfile
+            )
+        } else {
+            try? registrar.remove(change.newProfile)
         }
     }
 
@@ -178,7 +249,9 @@ final class ProfileStore: ObservableObject {
                 let data = try? Data(contentsOf: configurationURL),
                 let decoded = try? JSONDecoder().decode([Profile].self, from: data)
             else {
-                errorMessage = "The saved f2t configuration could not be read."
+                errorMessage = String(
+                    localized: "errors.data.configuration_unreadable"
+                )
                 return
             }
             profiles = migrateLegacyDefault(in: decoded)
@@ -205,6 +278,7 @@ final class ProfileStore: ObservableObject {
                 title: profile.title,
                 executable: profile.executable,
                 arguments: profile.arguments,
+                targetKind: profile.targetKind,
                 preserveSessionAfterCommand: true
             )
         }
@@ -232,22 +306,5 @@ final class ProfileStore: ObservableObject {
         )[0]
         .appendingPathComponent("f2t", isDirectory: true)
         .appendingPathComponent("profiles.json")
-    }
-}
-
-enum ProfileError: LocalizedError {
-    case emptyTitle
-    case emptyExecutable
-    case duplicateTitle
-
-    var errorDescription: String? {
-        switch self {
-        case .emptyTitle:
-            "The Finder menu title cannot be empty."
-        case .emptyExecutable:
-            "The executable cannot be empty."
-        case .duplicateTitle:
-            "Each Finder menu title must be unique."
-        }
     }
 }

@@ -171,10 +171,7 @@ struct WorkflowRegistrar {
                     "NSRequiredContext": [
                         "NSApplicationIdentifier": "com.apple.finder",
                     ],
-                    "NSSendFileTypes": [
-                        "public.item",
-                        "public.folder",
-                    ],
+                    "NSSendFileTypes": profile.targetKind.acceptedFileTypes,
                 ],
             ],
         ]
@@ -296,5 +293,18 @@ struct WorkflowRegistrar {
 extension String {
     var shellQuoted: String {
         "'" + replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+}
+
+private extension ProfileTargetKind {
+    var acceptedFileTypes: [String] {
+        switch self {
+        case .files:
+            ["public.data"]
+        case .folders:
+            ["public.folder"]
+        case .filesAndFolders:
+            ["public.item"]
+        }
     }
 }

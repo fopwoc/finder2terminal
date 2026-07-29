@@ -1,0 +1,13 @@
+{
+  "formatVersion" : 1,
+  "profile" : {
+    "arguments" : [
+
+    ],
+    "executable" : "/opt/homebrew/bin/nvim",
+    "id" : "801df823-7324-4e93-9c56-5ae3c0a03049",
+    "preserveSessionAfterCommand" : true,
+    "targetKind" : "filesAndFolders",
+    "title" : "Open in Nvim"
+  }
+}

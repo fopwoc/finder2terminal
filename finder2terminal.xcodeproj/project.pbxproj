@@ -18,10 +18,6 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		38E94F0B301931B0009869D9 /* finder2terminal */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
 			path = finder2terminal;
 			sourceTree = "<group>";
 		};
@@ -100,6 +96,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				ru,
 				Base,
 			);
 			mainGroup = 38E94F00301931B0009869D9;

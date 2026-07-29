@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = ProfileStore()
@@ -31,24 +30,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
         invocation == nil
-    }
-}
-
-@main
-struct finder2terminalApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-
-    var body: some Scene {
-        WindowGroup {
-            ContentView(store: appDelegate.store)
-        }
-        .commands {
-            CommandGroup(after: .appSettings) {
-                Divider()
-                Button("Delete All Data…") {
-                    appDelegate.store.isPurgeConfirmationPresented = true
-                }
-            }
-        }
     }
 }
