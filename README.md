@@ -13,7 +13,9 @@ take effect without rebuilding the workflow.
 
 ![](.github/assets/f2t_3.png)
 
-![](.github/assets/f2t_1.png) ![](.github/assets/f2t_2.png)
+| Main screen                   | Profile edit                  |
+|-------------------------------|-------------------------------|
+| ![](.github/assets/f2t_1.png) | ![](.github/assets/f2t_2.png) |
 
 ## Install
 
